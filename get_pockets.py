@@ -68,7 +68,8 @@ def get_pockets_contour(N, mu, B, Delta, phi_x, gamma, Lambda, k_F):
     roots = get_roots_at_k_y_zero(mu, B, Delta, phi_x, gamma, Lambda, k_F)
     minima_k_value = np.min(abs(roots))
     maxima_k_value = np.max(abs(roots))
-    radius_values = np.linspace(0.99*minima_k_value, 1.01*maxima_k_value, N)
+    #radius_values = np.linspace(0.99*minima_k_value, 1.01*maxima_k_value, N)
+    radius_values = np.linspace(0.99, 1.01, N)*k_F
     theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
     radius, theta = np.meshgrid(radius_values, theta_values)
     Energies_polar = get_Energies_in_polars(radius_values, theta_values, mu, B, Delta, phi_x, gamma, Lambda)
@@ -111,7 +112,7 @@ def get_pockets_contour(N, mu, B, Delta, phi_x, gamma, Lambda, k_F):
                         # Create a path from the interpolated segment
                         paths_by_level[level].append(Path(interp_seg))
         interpolation.append(paths_by_level)
-    return interpolation
+    return interpolation, Energies_polar
 
 def is_inside_contour(points, contour_level, paths_by_level_dict):
     """
@@ -144,7 +145,7 @@ def is_inside_contour(points, contour_level, paths_by_level_dict):
     return is_inside_mask
 
 def plot_interpolated_contours(N, mu, B, Delta, phi_x, gamma, Lambda, k_F):
-    pockets_dictionary = get_pockets_contour(N, mu, B, Delta, phi_x, gamma, Lambda, k_F)
+    pockets_dictionary, Energies = get_pockets_contour(N, mu, B, Delta, phi_x, gamma, Lambda, k_F)
     # Generate a grid of points to test
     test_x = np.linspace(-np.pi/2, 3*np.pi/2, 50)
     test_y = np.linspace(0.99, 1.005, 50) * k_F
@@ -177,12 +178,13 @@ def plot_interpolated_contours(N, mu, B, Delta, phi_x, gamma, Lambda, k_F):
     
 def integrate_pocket(N, mu, B, Delta, phi_x, gamma, Lambda, k_F):
     integral = np.zeros(4)
-    pockets_dictionary = get_pockets_contour(N, mu, B, Delta, phi_x, gamma, Lambda, k_F)
+    pockets_dictionary, Energies = get_pockets_contour(N, mu, B, Delta, phi_x, gamma, Lambda, k_F)
     contour_level_to_test = 0
     roots = get_roots_at_k_y_zero(mu, B, Delta, phi_x, gamma, Lambda, k_F)
     minima_k_value = np.min(abs(roots))
     maxima_k_value = np.max(abs(roots))
-    radius_values = np.linspace(0.99*minima_k_value, 1.01*maxima_k_value, N)
+    #radius_values = np.linspace(0.99*minima_k_value, 1.01*maxima_k_value, N)
+    radius_values = np.linspace(0.99, 1.01, N)*k_F
     theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
     radius, theta = np.meshgrid(radius_values, theta_values)
     Z = np.zeros((len(radius_values), len(theta_values)))
@@ -214,3 +216,100 @@ def integrate_pocket(N, mu, B, Delta, phi_x, gamma, Lambda, k_F):
         double_integral = scipy.integrate.trapezoid(inner_integral, radius_values, axis=0)
         integral[i] = double_integral
     return integral
+
+def integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x):
+    integral = np.zeros(4)
+    #roots = get_roots_at_k_y_zero(mu, B, Delta, phi_x, gamma, Lambda, k_F)
+    #minima_k_value = np.min(abs(roots))
+    #maxima_k_value = np.max(abs(roots))
+    #radius_values = np.linspace(0.99*minima_k_value, 1.01*maxima_k_value, N)
+    
+    radius_values = np.linspace(0.99, 1.01, N)*k_F
+    theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
+    radius, theta = np.meshgrid(radius_values, theta_values)
+    Z = np.zeros((len(radius_values), len(theta_values)))
+    for i in range(4):
+        for j, r in enumerate(radius_values):
+            for k, theta in enumerate(theta_values):
+                E = r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x)[0][0][i]
+                if E <= 0:
+                    Z[j, k] = E
+                else:
+                    Z[j, k] = 0
+        
+        # Integrate with respect to y first
+        inner_integral = scipy.integrate.trapezoid(Z, theta_values, axis=0,
+                                                   dx=np.diff(theta_values)[0])
+        
+        # Integrate the result with respect to x
+        double_integral = scipy.integrate.trapezoid(inner_integral, radius_values,
+                                                    axis=0,
+                                                    dx=np.diff(radius_values)[0])
+        integral[i] = double_integral
+    
+    low_integral = np.zeros(4)
+    """
+    radius_values = np.linspace(0, 0.99, N)*k_F
+    #radius_values = np.linspace(0, 0.99*minima_k_value, N)
+    theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
+    radius, theta = np.meshgrid(radius_values, theta_values)
+    Z = np.zeros((len(radius_values), len(theta_values)))
+    for i in range(4):
+        for j, r in enumerate(radius_values):
+            for k, theta in enumerate(theta_values):
+                E = get_Energies_in_polars([r], [theta], mu, B, Delta, phi_x, gamma, Lambda)[0][0][i]
+                if E <= 0:
+                    Z[j, k] = E
+                else:
+                    Z[j, k] = 0
+        # Integrate with respect to y first
+        inner_integral = scipy.integrate.trapezoid(Z, radius_values, axis=0)
+        
+        # Integrate the result with respect to x
+        double_integral = scipy.integrate.trapezoid(inner_integral, theta_values, axis=0)
+        
+        # Integrate with respect to y first
+        inner_integral = scipy.integrate.trapezoid(Z, theta_values, axis=0)
+        
+        # Integrate the result with respect to x
+        double_integral = scipy.integrate.trapezoid(inner_integral, radius_values, axis=0)
+        low_integral[i] = double_integral
+    """
+    for i in range(2):
+        f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x)[0][0][i]
+        low_integral[i], abserr = scipy.integrate.dblquad(f, 0, 2*np.pi, 0, 0.99*k_F) 
+
+    
+    high_integral = np.zeros(4)
+    radius_values = np.linspace(1.01, cut_off/k_F, N)*k_F
+    #radius_values = np.linspace(1.01*maxima_k_value, cut_off, N)
+    theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
+    radius, theta = np.meshgrid(radius_values, theta_values)
+    """
+    Z = np.zeros((len(radius_values), len(theta_values)))
+    for i in range(4):
+        for j, r in enumerate(radius_values):
+            for k, theta in enumerate(theta_values):
+                E = get_Energies_in_polars([r], [theta], mu, B, Delta, phi_x, gamma, Lambda)[0][0][i]
+                if E <= 0:
+                    Z[j, k] = E
+                else:
+                    Z[j, k] = 0
+        # Integrate with respect to y first
+        inner_integral = scipy.integrate.trapezoid(Z, radius_values, axis=0)
+        
+        # Integrate the result with respect to x
+        double_integral = scipy.integrate.trapezoid(inner_integral, theta_values, axis=0)
+        
+        # Integrate with respect to y first
+        inner_integral = scipy.integrate.trapezoid(Z, theta_values, axis=0)
+        
+        # Integrate the result with respect to x
+        double_integral = scipy.integrate.trapezoid(inner_integral, radius_values, axis=0)
+        high_integral[i] = double_integral
+    """
+    for i in range(2):
+        f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x)[0][0][i]
+        high_integral[i], abserr = scipy.integrate.dblquad(f, 0, 2*np.pi, 1.01*k_F, cut_off) 
+
+    return integral, low_integral, high_integral
