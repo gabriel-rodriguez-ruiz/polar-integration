@@ -27,7 +27,7 @@ k_F = np.sqrt(E_F / gamma ) # 1/nm
 Delta = 0.08 #0.08   #  meV
 mu = 50.6  #632 * Delta   #50.6  #  meV
 B = 1.3 * Delta
-theta = np.pi/4
+theta = -np.pi/4
 B_y = B * np.sin(theta) #  2 * Delta  # 2 * Delta
 B_x = B * np.cos(theta)
 phi_x = 0   #0.002 * k_F  # 0.002 * k_F
@@ -58,7 +58,7 @@ def analytic_term(mu, phi_x, gamma, cut_off):
 #%% Calculate fundamental energy
 
 #phi_x_values = np.linspace(-0.005 * k_F, 0.005 * k_F, 20)
-phi_x_values = np.linspace(-0.003 * k_F, 0.003 * k_F, N_phi)
+phi_x_values = np.linspace(-0.002 * k_F, 0.002 * k_F, N_phi)
 
 energy_phi = np.zeros_like(phi_x_values)
 cut_off = 1.1*k_F # 1.1 k_F
