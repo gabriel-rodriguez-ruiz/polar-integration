@@ -60,7 +60,7 @@ superfluid_density_finite_differences_0 = Data["superfluid_density_finite_differ
 superfluid_density_finite_differences_135 = Data["superfluid_density_finite_differences"]
 
 
-axs[0].plot(B_values/Delta, superfluid_density_finite_differences_135, "v", label=r"$n_{\perp,S}(\phi=\phi_{eq}, \lambda/\Delta=$" + f"{Lambda/Delta})")
+# axs[0].plot(B_values/Delta, superfluid_density_finite_differences_135, "v", label=r"$n_{\perp,S}(\phi=\phi_{eq}, \lambda/\Delta=$" + f"{Lambda/Delta})")
 axs[0].plot(B_values/Delta, superfluid_density_finite_differences_0, "v", label=r"$n_{\perp,S}(\phi=0, \lambda/\Delta=$" + f"{Lambda/Delta})",
             markersize=3, zorder=5)
 
@@ -69,7 +69,7 @@ axs[0].set_xlabel(r"$B/\Delta$")
 axs[0].set_ylabel(r"$D_s$")
 axs[0].set_title(r"$\lambda/\Delta=$" + f"{Lambda/Delta}")
 
-axs[1].plot(B_values/Delta, phi_eq_B/k_F,"vg")
+# axs[1].plot(B_values/Delta, phi_eq_B/k_F,"vg")
 
 axs[1].set_xlabel(r"$B/\Delta$")
 axs[1].set_ylabel(r"$\phi_{eq}/k_F$")
@@ -95,6 +95,6 @@ superfluid_density_finite_differences_0 = Data["superfluid_density_finite_differ
 superfluid_density_finite_differences_90 = Data["superfluid_density_finite_differences"]
 
 
-axs[0].plot(B_values/Delta, superfluid_density_finite_differences_90, "^", label=r"$n_{\perp,S}(\phi=\phi_{eq}, \lambda/\Delta=$" + f"{Lambda/Delta})")
-axs[0].plot(B_values/Delta, superfluid_density_finite_differences_0, "^", label=r"$n_{\perp,S}(\phi=0, \lambda/\Delta=$" + f"{Lambda/Delta})",
-            markersize=3, zorder=5)
+# axs[0].plot(B_values/Delta, superfluid_density_finite_differences_90, "^", label=r"$n_{\perp,S}(\phi=\phi_{eq}, \lambda/\Delta=$" + f"{Lambda/Delta})")
+# axs[0].plot(B_values/Delta, superfluid_density_finite_differences_0, "^", label=r"$n_{\perp,S}(\phi=0, \lambda/\Delta=$" + f"{Lambda/Delta})",
+#             markersize=3, zorder=5)

@@ -26,8 +26,8 @@ k_F = np.sqrt(E_F / gamma ) # 1/nm
 
 Delta = 0.08 #0.08   #  meV
 mu = 50.6  #632 * Delta   #50.6  #  meV
-B = 1.3 * Delta
-theta = -np.pi/4
+B = 2. * Delta
+theta = np.pi/2
 B_y = B * np.sin(theta) #  2 * Delta  # 2 * Delta
 B_x = B * np.cos(theta)
 phi_x = 0   #0.002 * k_F  # 0.002 * k_F
@@ -36,7 +36,7 @@ Lambda = 8 * Delta # 8 * Delta  #0.644 meV
 
 #phi_x_values = np.linspace(0, 0.0002 * k_F, 10)
 N = 100
-N_phi = 31  # it should be odd to include zero
+N_phi = 11  # it should be odd to include zero
 
 #cut_off = 2*k_F 
 #pockets_dictionary, Energies = get_pockets_contour(N, mu, B, Delta, phi_x, gamma, Lambda, k_F)
@@ -66,7 +66,7 @@ cut_off = 1.1*k_F # 1.1 k_F
 for i, phi_x in enumerate(phi_x_values):
     print(phi_x)
     #integrals = integrate_pocket(N, mu, B, Delta, phi_x, gamma, Lambda, k_F)
-    integral, low_integral, high_integral = integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x)
+    integral, low_integral, high_integral = integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x, phi_y=0)
     energy_phi[i] = np.sum(integral) + np.sum(low_integral) + np.sum(high_integral)
     
     
@@ -75,17 +75,19 @@ for i, phi_x in enumerate(phi_x_values):
 from scipy.interpolate import CubicSpline
 from scipy.signal import find_peaks
 
+C = 3
+
 fig, ax = plt.subplots()
 #ax.plot(phi_x_values/k_F, energy_phi, "o")
 fundamental_energy = energy_phi + np.pi/2 * cut_off**2 * (2*gamma*phi_x_values**2 - 2*mu + gamma*cut_off**2)
-ax.plot(phi_x_values/k_F, fundamental_energy, "o")
+ax.plot(phi_x_values/k_F, fundamental_energy + C*phi_x_values**2/k_F, "o")
  
 
 cs = CubicSpline(phi_x_values, fundamental_energy)
-x = np.linspace(-0.00002 * k_F, 0.00002 * k_F, 300)
+x = np.linspace(-0.002 * k_F, 0.002 * k_F, 300)
 # x = np.linspace(-0.005 * k_F, 0.005 * k_F, 300)
 
-ax.plot(x/k_F, cs(x))
+# ax.plot(x/k_F, cs(x))
 
 
 
@@ -106,7 +108,7 @@ ax.set_title(r"$B_y/\Delta=$" + f"{B_y/Delta:.5}" +
 # second_derivative = float(cs.derivative(nu=2)(x[minima]))
 
 # axs[1].plot(x/k_F, cs.derivative(nu=2)(x))
-N_polifit = 2
+N_polifit = 1
 
 peaks_data, properties_data = find_peaks(-fundamental_energy)
 minima_index = peaks_data[np.argmax(-fundamental_energy[peaks_data])]

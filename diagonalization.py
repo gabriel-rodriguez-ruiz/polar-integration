@@ -32,12 +32,12 @@ def get_Energies(k_x_values, k_y_values, mu, B, Delta, phi_x, gamma, Lambda):
             E[i, j, :] = np.linalg.eigvalsh(H)
     return E
 
-def get_Hamiltonian_in_polars(k, theta, mu, B_y, Delta, phi_x, gamma, Lambda, B_x):
+def get_Hamiltonian_in_polars(k, theta, mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y):
     """Return the Hamiltonian for a given k."""
     k_x = k * np.cos(theta)
     k_y = k * np.sin(theta)
-    chi_k_plus = gamma * ( (k_x + phi_x)**2 + k_y**2) - mu
-    chi_k_minus = gamma * ( (-k_x + phi_x)**2 + k_y**2 ) - mu
+    chi_k_plus = gamma * ( (k_x + phi_x)**2 + (k_y + phi_y)**2) - mu
+    chi_k_minus = gamma * ( (-k_x + phi_x)**2 + (-k_y + phi_y)**2 ) - mu
     return 1/2 * ( chi_k_plus * np.kron( ( tau_0 + tau_z )/2, sigma_0)
                    - chi_k_minus * np.kron( ( tau_0 - tau_z )/2, sigma_0)
                    - B_y * np.kron(tau_0, sigma_y)
@@ -45,15 +45,16 @@ def get_Hamiltonian_in_polars(k, theta, mu, B_y, Delta, phi_x, gamma, Lambda, B_
                    - Delta * np.kron(tau_x, sigma_0)
                    + Lambda * (k_x + phi_x) * np.kron( ( tau_0 + tau_z )/2, sigma_y )
                    + Lambda * (-k_x + phi_x) * np.kron( ( tau_0 - tau_z )/2, sigma_y )
-                   - Lambda * k_y * np.kron( tau_z, sigma_x )
+                   - Lambda * (k_y + phi_y) * np.kron( ( tau_0 + tau_z )/2, sigma_x )
+                   - Lambda * (-k_y + phi_y) * np.kron( ( tau_0 - tau_z )/2, sigma_x )
                  )
 
-def get_Energies_in_polars(k_values, theta_values, mu, B_y, Delta, phi_x, gamma, Lambda, B_x):
+def get_Energies_in_polars(k_values, theta_values, mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y):
     """Return the energies of the Hamiltonian at a given k."""
     E = np.zeros((len(k_values), len(theta_values), 4))
     for i, k in enumerate(k_values):
         for j, theta in enumerate(theta_values):
-            H = get_Hamiltonian_in_polars(k, theta, mu, B_y, Delta, phi_x, gamma, Lambda, B_x)
+            H = get_Hamiltonian_in_polars(k, theta, mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)
             E[i, j, :] = np.linalg.eigvalsh(H)
     return E
 

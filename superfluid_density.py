@@ -34,17 +34,19 @@ cut_off = 1.1*k_F # 1.1 k_F
 
 B_y = 0
 B_x = 0
-theta = -np.pi/4
+theta = 0. #np.pi/2   # float
 
-N = 300    #300
-n_cores = 16
-points = 1* n_cores
+N = 200    #300
+n_cores = 8
+points = 2* n_cores
 N_polifit = 2  # 4
+C = 3
+
 
 parameters = {"gamma": gamma, "points": points, "k_F": k_F,
               "mu": mu, "Delta": Delta, "phi_x_values": phi_x_values,
               "N_phi": N_phi, "Lambda": Lambda, "N": N,
-              "cut_off": cut_off
+              "cut_off": cut_off, "C": C
               }
 
 def integrate_B_y(B_y):
@@ -53,7 +55,7 @@ def integrate_B_y(B_y):
     for j, phi_x in enumerate(phi_x_values):
         integral, low_integral, high_integral = integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x)
         energy_phi[j] = np.sum(integral) + np.sum(low_integral) + np.sum(high_integral)
-    fundamental_energy = energy_phi + np.pi/2 * cut_off**2 * (2*gamma*phi_x_values**2 - 2*mu + gamma*cut_off**2)
+    fundamental_energy = energy_phi + np.pi/2 * cut_off**2 * (2*gamma*phi_x_values**2 - 2*mu + gamma*cut_off**2) + C/k_F * phi_x_values**2
     
     try:
         peaks_data, properties_data = find_peaks(-fundamental_energy)
@@ -93,7 +95,7 @@ def integrate_B_x(B_x):
     for j, phi_x in enumerate(phi_x_values):
         integral, low_integral, high_integral = integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x)
         energy_phi[j] = np.sum(integral) + np.sum(low_integral) + np.sum(high_integral)
-    fundamental_energy = energy_phi + np.pi/2 * cut_off**2 * (2*gamma*phi_x_values**2 - 2*mu + gamma*cut_off**2)
+    fundamental_energy = energy_phi + np.pi/2 * cut_off**2 * (2*gamma*phi_x_values**2 - 2*mu + gamma*cut_off**2) + C/k_F * phi_x_values**2
     peaks_data, properties_data = find_peaks(-fundamental_energy)
     minima_index = peaks_data[np.argmax(-fundamental_energy[peaks_data])]
     a = minima_index - N_polifit
@@ -127,9 +129,10 @@ def integrate_B(B):
     energy_phi = np.zeros_like(phi_x_values)
 
     for j, phi_x in enumerate(phi_x_values):
-        integral, low_integral, high_integral = integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x)
+        print(j)
+        integral, low_integral, high_integral = integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x, phi_y=0)
         energy_phi[j] = np.sum(integral) + np.sum(low_integral) + np.sum(high_integral)
-    fundamental_energy = energy_phi + np.pi/2 * cut_off**2 * (2*gamma*phi_x_values**2 - 2*mu + gamma*cut_off**2)
+    fundamental_energy = energy_phi + np.pi/2 * cut_off**2 * (2*gamma*phi_x_values**2 - 2*mu + gamma*cut_off**2) + C/k_F * phi_x_values**2
     peaks_data, properties_data = find_peaks(-fundamental_energy)
     minima_index = peaks_data[np.argmax(-fundamental_energy[peaks_data])]
     a = minima_index - N_polifit
@@ -162,7 +165,17 @@ def integrate_B(B):
     else:
         third_minima_index = zero_index
         superfluid_density_finite_differences_third_minima = (fundamental_energy[third_minima_index+1]-2*fundamental_energy[third_minima_index]+fundamental_energy[third_minima_index-1])/np.diff(phi_x_values)[0]**2
-
+    
+    h = 1e-4 * k_F
+    phi_y_values = np.array([-h, 0, h])
+    energy_phi = np.zeros_like(phi_y_values)
+    for j, phi_y in enumerate(phi_y_values):
+        integral, low_integral, high_integral = integrate_brute_force(N, mu, B_y, Delta, phi_x_values[minima_index], gamma, Lambda, k_F, cut_off, B_x, phi_y)
+        energy_phi[j] = np.sum(integral) + np.sum(low_integral) + np.sum(high_integral)
+    fundamental_energy = energy_phi + np.pi/2 * cut_off**2 * (2*gamma*(phi_x_values[minima_index]**2 + phi_y_values**2) - 2*mu + gamma*cut_off**2) + C/k_F * ( phi_x_values[minima_index]**2 + phi_y_values**2)
+   
+    superfluid_density_yy = (fundamental_energy[2]-2*fundamental_energy[1]+fundamental_energy[0])/h**2
+    
     """
     cs = CubicSpline(phi_x_values, fundamental_energy)
     x = np.linspace(min(phi_x_values), max(phi_x_values), 500)
@@ -170,33 +183,35 @@ def integrate_B(B):
     minima = peaks[np.argmax(-cs(x[peaks]))]
     second_derivative = float(cs.derivative(nu=2)(x[minima]))
     """
-    return superfluid_density, phi_x_values[minima_index], superfluid_density_0, superfluid_density_finite_differences, superfluid_density_finite_differences_0, superfluid_density_finite_differences_second_minima, phi_x_values[second_minima_index], superfluid_density_finite_differences_third_minima, phi_x_values[third_minima_index]
+    return superfluid_density, phi_x_values[minima_index], superfluid_density_0, superfluid_density_finite_differences, superfluid_density_finite_differences_0, superfluid_density_finite_differences_second_minima, phi_x_values[second_minima_index], superfluid_density_finite_differences_third_minima, phi_x_values[third_minima_index], superfluid_density_yy
 
 
 if __name__ == "__main__":
-    B_values = np.linspace(0.8*Delta, 1.3*Delta, points)
+    B_values = np.linspace(0.8*Delta, 2.5*Delta, points)
     integrate = integrate_B
     B_direction = f"{theta:.2}"
     # integrate = integrate_B_y
     with multiprocessing.Pool(n_cores) as pool:
-        superfluid_density, phi_eq, superfluid_density_0, superfluid_density_finite_differences, superfluid_density_finite_differences_0, superfluid_density_finite_differences_second_minima, phi_eq_second_minima, superfluid_density_finite_differences_third_minima, phi_eq_third_minima= zip(*pool.map(integrate, B_values))
+        superfluid_density, phi_eq, superfluid_density_0, superfluid_density_finite_differences, superfluid_density_finite_differences_0, superfluid_density_finite_differences_second_minima, phi_eq_second_minima, superfluid_density_finite_differences_third_minima, phi_eq_third_minima, superfluid_density_yy= zip(*pool.map(integrate, B_values))
     superfluid_density = np.array(superfluid_density)
     superfluid_density_0 = np.array(superfluid_density_0)
     superfluid_density_finite_differences = np.array(superfluid_density_finite_differences)
     superfluid_density_finite_differences_0 = np.array(superfluid_density_finite_differences_0)
     superfluid_density_finite_differences_second_minima = np.array(superfluid_density_finite_differences_second_minima)
     superfluid_density_finite_differences_third_minima = np.array(superfluid_density_finite_differences_third_minima)
+    superfluid_density_yy = np.array(superfluid_density_yy)
     phi_eq = np.array(phi_eq)
     phi_eq_second_minima = np.array(phi_eq_second_minima)
     phi_eq_third_minima = np.array(phi_eq_third_minima)
     data_folder = Path("Data/")
-    name = f"superfluid_density_B_in_{B_direction}_({np.round(np.min(B_values/Delta),3)}-{np.round(np.max(B_values/Delta),3)})_phi_x_in_({np.round(np.min(phi_x_values/k_F), 3)}-{np.round(np.max(phi_x_values/k_F),3)})_Delta={Delta}_lambda={np.round(Lambda, 2)}_points={points}_N_phi={N_phi}_N={N}.npz"
+    name = f"superfluid_density_B_in_{B_direction}_({np.round(np.min(B_values/Delta),3)}-{np.round(np.max(B_values/Delta),3)})_phi_x_in_({np.round(np.min(phi_x_values/k_F), 3)}-{np.round(np.max(phi_x_values/k_F),3)})_Delta={Delta}_lambda={np.round(Lambda, 2)}_points={points}_N_phi={N_phi}_N={N}_C={C}.npz"
     file_to_open = data_folder / name
     np.savez(file_to_open, superfluid_density=superfluid_density, superfluid_density_0=superfluid_density_0,
              superfluid_density_finite_differences= superfluid_density_finite_differences,
              superfluid_density_finite_differences_0=superfluid_density_finite_differences_0,
              superfluid_density_finite_differences_second_minima=superfluid_density_finite_differences_second_minima,
              superfluid_density_finite_differences_third_minima = superfluid_density_finite_differences_third_minima,
+             superfluid_density_yy=superfluid_density_yy,
              phi_eq_third_minima=phi_eq_third_minima,
              phi_eq_second_minima = phi_eq_second_minima,
              B_values=B_values, phi_eq=phi_eq, **parameters)

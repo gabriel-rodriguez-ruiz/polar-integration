@@ -217,7 +217,7 @@ def integrate_pocket(N, mu, B, Delta, phi_x, gamma, Lambda, k_F):
         integral[i] = double_integral
     return integral
 
-def integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x):
+def integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x, phi_y):
     integral = np.zeros(4)
     #roots = get_roots_at_k_y_zero(mu, B, Delta, phi_x, gamma, Lambda, k_F)
     #minima_k_value = np.min(abs(roots))
@@ -231,7 +231,7 @@ def integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off,
     for i in range(4):
         for j, r in enumerate(radius_values):
             for k, theta in enumerate(theta_values):
-                E = r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x)[0][0][i]
+                E = r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
                 if E <= 0:
                     Z[j, k] = E
                 else:
@@ -276,7 +276,7 @@ def integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off,
         low_integral[i] = double_integral
     """
     for i in range(2):
-        f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x)[0][0][i]
+        f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
         low_integral[i], abserr = scipy.integrate.dblquad(f, 0, 2*np.pi, 0, 0.99*k_F) 
 
     
@@ -309,7 +309,7 @@ def integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off,
         high_integral[i] = double_integral
     """
     for i in range(2):
-        f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x)[0][0][i]
+        f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
         high_integral[i], abserr = scipy.integrate.dblquad(f, 0, 2*np.pi, 1.01*k_F, cut_off) 
 
     return integral, low_integral, high_integral
