@@ -12,6 +12,40 @@ import scipy
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 
+def find_nonzero_domains_numpy(arr):
+    """
+    NumPy version for finding non-zero domains in each row.
+    """
+    result = []
+    
+    for i in range(arr.shape[0]):
+        row = arr[i]
+        # Find where non-zero values start and end
+        nonzero_mask = row != 0
+        if not np.any(nonzero_mask):
+            result.append([])
+            continue
+            
+        # Find boundaries where values change from 0 to non-zero or vice versa
+        boundaries = np.where(nonzero_mask[1:] != nonzero_mask[:-1])[0] + 1
+        
+        # If first element is non-zero, add start at 0
+        if nonzero_mask[0]:
+            starts = [0] + boundaries[1::2].tolist()
+            ends = boundaries[::2].tolist()
+        else:
+            starts = boundaries[::2].tolist()
+            ends = boundaries[1::2].tolist()
+        
+        # If last element is non-zero, add end at last index
+        if nonzero_mask[-1]:
+            ends.append(len(row) - 1)
+        
+        row_domains = list(zip(starts, ends))
+        result.append(row_domains)
+    
+    return result
+
 def find_all_roots(f, x_range=(-10, 10), num_points=10000, tol=1e-8):
     """
     Find all real roots of a function f(x) in a given range.
@@ -281,11 +315,12 @@ def integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off,
 
     
     high_integral = np.zeros(4)
+    """
     radius_values = np.linspace(1.01, cut_off/k_F, N)*k_F
     #radius_values = np.linspace(1.01*maxima_k_value, cut_off, N)
     theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
     radius, theta = np.meshgrid(radius_values, theta_values)
-    """
+    
     Z = np.zeros((len(radius_values), len(theta_values)))
     for i in range(4):
         for j, r in enumerate(radius_values):
@@ -312,4 +347,141 @@ def integrate_brute_force(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off,
         f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
         high_integral[i], abserr = scipy.integrate.dblquad(f, 0, 2*np.pi, 1.01*k_F, cut_off) 
 
+    return integral, low_integral, high_integral
+
+def rombND(z, steps=1):
+    """
+    Romberg ND-integration using samples of a ND function. 
+    
+    See scipy.integrate.romb for details.
+    
+    >>> nx, ny, nz = 2**3 + 1, 2**4 + 1, 2**2 + 1
+    >>> xlims, ylims, zlims = (0, 1), (0, 2), (0, 1/2)
+    >>> z, y, x = np.ogrid[zlims[0]:zlims[1]:nz*1j, ylims[0]:ylims[1]:ny*1j, xlims[0]:xlims[1]:nx*1j]
+    >>> dz, dy, dx = (z[-1, 0, 0] - z[0, 0, 0]) / (nz - 1), (y[0, -1, 0] - y[0, 0, 0]) / (ny - 1), (x[0, 0, -1] - x[0, 0, 0]) / (nx - 1)
+    >>> integrand = (2 * x + y + z / 2)**2  # int_{x=0}^{1} int_{y=0}^{2} int_{z=0}^{1/2} = 83/16
+    >>> np.isclose(rombND(integrand, (dx, dy, dz)), 83/16)
+    True
+    """
+    
+    steps = np.resize(steps, (z.ndim,))  # Make it a 1D vector
+    for axis in range(z.ndim):
+        step = steps[axis]
+        if axis == 0:
+            integral = [ scipy.integrate.romb(zz, step) for zz in z ]
+        else:
+            integral = scipy.integrate.romb(integral, step)
+            
+    return integral
+
+def integrate_Romberg(N, mu, B_y, Delta, phi_x, gamma, Lambda, k_F, cut_off, B_x, phi_y):
+    B = np.sqrt(B_x**2 + B_y**2)
+    phi = np.sqrt(phi_x**2 + phi_y**2)
+    k = int(np.log2(N-1))
+    N = 2**k + 1
+    integral = np.zeros(4)
+    
+    # f = lambda x: get_Analytic_energies_at_k_y_zero(x, mu, B, Delta, phi, gamma, Lambda)[2]
+    # g = lambda x: get_Analytic_energies_at_k_y_zero(x, mu, B, Delta, phi, gamma, Lambda)[1]
+    # h = lambda x: get_Analytic_energies_at_k_y_zero(x, mu, B, Delta, phi, gamma, Lambda)[0]
+    # l = lambda x: get_Analytic_energies_at_k_y_zero(x, mu, B, Delta, phi, gamma, Lambda)[3]
+    # roots = find_all_roots(f, x_range=(-1.02*k_F, -0.98*k_F))
+    # roots = np.append(roots, find_all_roots(g, x_range=(-1.02*k_F, -0.98*k_F)))
+    # roots = np.append(roots, find_all_roots(h, x_range=(-1.02*k_F, -0.98*k_F)))
+    # roots = np.append(roots, find_all_roots(l, x_range=(-1.02*k_F, -0.98*k_F)))
+    
+    roots = [0.99*k_F, 1.012*k_F]
+    
+    if len(roots)==0:   # no pockets
+        r_min = 0.99*k_F
+        r_max = 1.012*k_F
+        for i in range(2):
+            f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+            integral[i], c = scipy.integrate.dblquad(f, 0, 2*np.pi, 0, cut_off) 
+        low_integral = 0
+        high_integral = 0
+        
+    elif len(roots)==2:   # one pair of pockets
+        r_min = min(np.abs(roots))
+        r_max = max(np.abs(roots))
+        
+        radius_values = np.linspace(r_min, r_max, N)
+        theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
+        radius, theta = np.meshgrid(radius_values, theta_values)
+        Z = np.zeros((len(radius_values), len(theta_values)))
+        for i in range(4):
+            for j, r in enumerate(radius_values):
+                for k, theta in enumerate(theta_values):
+                    E = r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+                    if E <= 0:
+                        Z[j, k] = E
+                    else:
+                        Z[j, k] = 0
+            integral[i] = rombND(Z, steps=(np.diff(theta_values)[0], np.diff(radius_values)[0], ))
+        
+        low_integral = np.zeros(4)
+        
+        for i in range(2):
+            f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+            low_integral[i], c = scipy.integrate.dblquad(f, 0, 2*np.pi, 0, r_min) 
+    
+        
+        high_integral = np.zeros(4)
+        
+        for i in range(2):
+            f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+            high_integral[i], abserr = scipy.integrate.dblquad(f, 0, 2*np.pi, r_max, cut_off) 
+
+    else:   # two pairs of pockets
+        roots = np.sort(np.abs(roots))
+        r_min_1 = 0.99 * np.abs(roots[0])     
+        r_max_1 = 1.01 * np.abs(roots[1])  
+        r_min_2 = 0.99 * np.abs(roots[2])
+        r_max_2 = 1.01 * np.abs(roots[3])  
+        
+        radius_values = np.linspace(r_min_1, r_max_1, N)
+        theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
+        radius, theta = np.meshgrid(radius_values, theta_values)
+        Z = np.zeros((len(radius_values), len(theta_values)))
+        for i in range(4):
+            for j, r in enumerate(radius_values):
+                for k, theta in enumerate(theta_values):
+                    E = r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+                    if E <= 0:
+                        Z[j, k] = E
+                    else:
+                        Z[j, k] = 0
+            integral[i] = rombND(Z, steps=(np.diff(theta_values)[0], np.diff(radius_values)[0], ))
+            
+        radius_values = np.linspace(r_min_2, r_max_2, N)
+        theta_values = np.linspace(-np.pi/2, 3*np.pi/2, N)
+        radius, theta = np.meshgrid(radius_values, theta_values)
+        Z = np.zeros((len(radius_values), len(theta_values)))
+        for i in range(4):
+            for j, r in enumerate(radius_values):
+                for k, theta in enumerate(theta_values):
+                    E = r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+                    if E <= 0:
+                        Z[j, k] = E
+                    else:
+                        Z[j, k] = 0
+            integral[i] += rombND(Z, steps=(np.diff(theta_values)[0], np.diff(radius_values)[0], ))
+            
+        low_integral = np.zeros(4)
+        
+        for i in range(2):
+            f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+            low_integral[i], c = scipy.integrate.dblquad(f, 0, 2*np.pi, 0, r_min_1)
+        
+        for i in range(2):
+            f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+            result, c = scipy.integrate.dblquad(f, 0, 2*np.pi, r_max_1, r_min_2) 
+            low_integral[i] += result
+    
+        high_integral = np.zeros(4)
+        
+        for i in range(2):
+            f = lambda r, theta: r * get_Energies_in_polars([r], [theta], mu, B_y, Delta, phi_x, gamma, Lambda, B_x, phi_y)[0][0][i]
+            high_integral[i], abserr = scipy.integrate.dblquad(f, 0, 2*np.pi, r_max_2, cut_off) 
+        
     return integral, low_integral, high_integral
